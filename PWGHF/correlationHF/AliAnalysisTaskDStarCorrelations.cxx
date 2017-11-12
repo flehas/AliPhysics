@@ -111,7 +111,6 @@ fD0Window(0),
 fMCEventType(kFALSE),
 fRefMult(9.26),
 fAODProtection(1),
-fPurityStudies(kTRUE),
 fOutput(0x0),
 fDmesonOutput(0x0),
 fTracksOutput(0x0),
@@ -176,7 +175,6 @@ fD0Window(0),
 fMCEventType(kFALSE),
 fRefMult(9.26),
 fAODProtection(1),
-fPurityStudies(kTRUE),
 fOutput(0x0),
 fDmesonOutput(0x0),
 fTracksOutput(0x0),
@@ -231,7 +229,7 @@ AliAnalysisTaskDStarCorrelations::~AliAnalysisTaskDStarCorrelations() {
 	// destructor
 	//
 	
-	Info("AliAnalysisTaskDStarCorrelations","Calling Destructor");
+	Info("AliAnalysisTaskDStarCorrelations","Calling Destructor");  
 	
 	if(fhandler) {delete fhandler; fhandler = 0;}
 	//if(fPoolMgr) {delete fPoolMgr; fPoolMgr = 0;}    
@@ -332,6 +330,8 @@ void AliAnalysisTaskDStarCorrelations::UserCreateOutputObjects(){
  
     
 
+    
+
 	fCounter = new AliNormalizationCounter(Form("%s",GetOutputSlot(7)->GetContainer()->GetName()));
 	fCounter->Init();
 	
@@ -350,12 +350,13 @@ void AliAnalysisTaskDStarCorrelations::UserCreateOutputObjects(){
 	if(fmult){
 	 fCorrelator->SetMinMultCandidate(fminMult);
 	 fCorrelator->SetMaxMultCandidate(fmaxMult);
-     fCorrelator->SetMultBins(fnmultBins+1,fmultarray);}
+       	 fCorrelator->SetMultBins(fnmultBins+1,fmultarray);}
 	if(!pooldef) AliInfo("Warning:: Event pool not defined properly");
     
     fUtils = new AliAnalysisUtils();
     
     
+	
 	PostData(1,fOutput); // set the outputs
 	PostData(2,fDmesonOutput); // set the outputs
     PostData(3,fTracksOutput); // set the outputs
@@ -368,8 +369,6 @@ void AliAnalysisTaskDStarCorrelations::UserCreateOutputObjects(){
 
 //________________________________________  user exec ____________
 void AliAnalysisTaskDStarCorrelations::UserExec(Option_t *){
-    
-    cout << "===================>>>> UserExec" << endl ;
     // cout << "Task debug check 1 " << endl;
      // ********************************************** LOAD THE EVENT ****************************************************
     
@@ -649,12 +648,6 @@ if(fmult){
                     if (part->IsPhysicalPrimary()) ((TH1D*)fOutputMC->FindObject("isPhysPrimDCA"))->Fill(partdummy->GetImpPar()); // fill isphysicalprimary
                 if (!part->IsPhysicalPrimary()) ((TH1D*)fOutputMC->FindObject("isSecondaryDCA"))->Fill(partdummy->GetImpPar()); // fill isnotphysicalprimary
             }
-            
-            if (!part->IsPhysicalPrimary()) {
-                ((TH1F*)fOutputMC->FindObject(Form("hPhysPrim_Bin%d",ptbin)))->Fill(1.);
-                if(!fPurityStudies) continue; //reject the Reco track if correspondent Kine track is not primary
-            } else ((TH1F*)fOutputMC->FindObject(Form("hPhysPrim_Bin%d",ptbin)))->Fill(0.);
-            
         }
         phi = fCorrelator->SetCorrectPhiRange(partdummy->Phi());
         ((TH2D*)fEMOutput->FindObject("EtaVsMultForTracks"))->Fill(partdummy->Eta(),MultipOrCent);
@@ -1263,8 +1256,6 @@ if(fmult){
                  
                  Int_t label = hadron->GetLabel();
                  
-                 //if(fPurityStudies) {
-                   // if(!fmixing && fReco && fmontecarlo) FillPurityPlots(fmcArray,hadron,ptbin,DeltaPhi); }
                  
                  if(fmontecarlo){
                      AliAODMCParticle *part = (AliAODMCParticle*)fmcArray->At(label);
@@ -1277,9 +1268,6 @@ if(fmult){
                          //if(!MCAODTrack) ((TH2D*)fOutputMC->FindObject("isSecondaryDCAbsDphi"))->Fill(DeltaPhi,-0.005);
                          //cout << "the DCA is = " << MCAODTrack->DCA() << endl;
                         
-                         cout << ":::::::::::::>>>> fPurityStudies = " << fPurityStudies << endl;
-                         printf(":::::::::::::>>>> fPurityStudies \n");
-                         if(fPurityStudies) FillPurityPlots(fmcArray,hadron,ptbin,DeltaPhi);
                          
                      }
                      
@@ -1358,7 +1346,6 @@ if(fmult){
                 if(trackOrigin[0]) MCarraytofill[5] = 1 ; // is from charm
                 else if(trackOrigin[1]) MCarraytofill[5] = 2 ; // is from beauty
                 else MCarraytofill[5] = 0; // non HF track
-                    
                  }
         
                  
@@ -2163,79 +2150,6 @@ void AliAnalysisTaskDStarCorrelations::DefineHistoForAnalysis(){
     fEMOutput->Add(EtaVsMultForDCand8to16);
     fEMOutput->Add(EtaVsMultForSB8to16);
     
-    
-    
-    TString namePlot = "";
-    
-    if(fPurityStudies) {
-        
-        cout << "==========================================>>>>> fPurityStudies <<<<<====== " << endl;
-        printf(" ==========================================>>>>> fPurityStudies <<<<<====== \n");
-
-        
-        TString namebinD[4] = {"3to5","5to8","8to16","16to24"};
-        TString namebinAss[6] = {"03to99","03to1","1to99","1to2","2to3","3to99"};
-        
-        for(int i=0; i<4; i++) { //pTD
-            for(int j=0; j<6; j++) { //pTass
-                namePlot=Form("hPurityCount_PrimAccepted_pTD%s_pTass%s",namebinD[i].Data(),namebinAss[j].Data());
-                TH1F *hpurity_prim = new TH1F(namePlot.Data(), "Prim accepted",1,-0.5,0.5);
-                hpurity_prim->SetMinimum(0);
-                hpurity_prim->Sumw2();
-                hpurity_prim->GetXaxis()->SetBinLabel(1,"Accepted");
-                fOutputMC->Add(hpurity_prim);
-                
-                namePlot=Form("hPurityCount_SecAccepted_pTD%s_pTass%s",namebinD[i].Data(),namebinAss[j].Data());
-                TH1F *hpurity_sec = new TH1F(namePlot.Data(), "Sec accepted",1,-0.5,0.5);
-                hpurity_sec->SetMinimum(0);
-                hpurity_sec->Sumw2();
-                hpurity_sec->GetXaxis()->SetBinLabel(1,"Accepted");
-                fOutputMC->Add(hpurity_sec);
-                
-                namePlot=Form("hPurityCount_CharmAccepted_pTD%s_pTass%s",namebinD[i].Data(),namebinAss[j].Data());
-                TH1F *hpurity_c = new TH1F(namePlot.Data(), "Charm accepted",1,-0.5,0.5);
-                hpurity_c->SetMinimum(0);
-                hpurity_c->Sumw2();
-                hpurity_c->GetXaxis()->SetBinLabel(1,"Accepted");
-                fOutputMC->Add(hpurity_c);
-                
-                namePlot=Form("hPurityCount_BeautyAccepted_pTD%s_pTass%s",namebinD[i].Data(),namebinAss[j].Data());
-                TH1F *hpurity_b = new TH1F(namePlot.Data(), "Beauty accepted",1,-0.5,0.5);
-                hpurity_b->SetMinimum(0);
-                hpurity_b->Sumw2();
-                hpurity_b->GetXaxis()->SetBinLabel(1,"Accepted");
-                fOutputMC->Add(hpurity_b);
-                
-                namePlot=Form("hPuritydPhi_PrimAccepted_pTD%s_pTass%s",namebinD[i].Data(),namebinAss[j].Data());
-                TH1F *hpuritydphi_prim = new TH1F(namePlot.Data(), "Prim accepted vs dPhi",32,-TMath::Pi()/2.,3*TMath::Pi()/2.);
-                hpuritydphi_prim->SetMinimum(0);
-                hpuritydphi_prim->Sumw2();
-                fOutputMC->Add(hpuritydphi_prim);
-                
-                namePlot=Form("hPuritydPhi_SecAccepted_pTD%s_pTass%s",namebinD[i].Data(),namebinAss[j].Data());
-                TH1F *hpuritydphi_sec = new TH1F(namePlot.Data(), "Sec accepted vs dPhi",32,-TMath::Pi()/2.,3*TMath::Pi()/2.);
-                hpuritydphi_sec->SetMinimum(0);
-                hpuritydphi_sec->Sumw2();
-                fOutputMC->Add(hpuritydphi_sec);
-                
-                namePlot=Form("hPuritydPhi_CharmAccepted_pTD%s_pTass%s",namebinD[i].Data(),namebinAss[j].Data());
-                TH1F *hpuritydphi_c = new TH1F(namePlot.Data(), "Charm accepted vs dPhi",32,-TMath::Pi()/2.,3*TMath::Pi()/2.);
-                hpuritydphi_c->SetMinimum(0);
-                hpuritydphi_c->Sumw2();
-                fOutputMC->Add(hpuritydphi_c);
-                
-                namePlot=Form("hPuritydPhi_BeautyAccepted_pTD%s_pTass%s",namebinD[i].Data(),namebinAss[j].Data());
-                TH1F *hpuritydphi_b = new TH1F(namePlot.Data(), "Beauty accepted vs dPhi",32,-TMath::Pi()/2.,3*TMath::Pi()/2.);
-                hpuritydphi_b->SetMinimum(0);
-                hpuritydphi_b->Sumw2();
-                fOutputMC->Add(hpuritydphi_b);
-            }
-        }
-        
-    } //end of purity studies
-    
-    
-    
    // if(fFillTrees!=kNoTrees) PostData(10,fTreeD);
     
 }
@@ -2480,148 +2394,5 @@ TProfile* AliAnalysisTaskDStarCorrelations::GetEstimatorHistogram(const AliVEven
 
 return fMultEstimatorAvg[period];
 }
-//________________________________________________________________________
-void AliAnalysisTaskDStarCorrelations::FillPurityPlots(TClonesArray* mcArray, AliReducedParticle* track, Int_t ptbin, Double_t deltaphi) {
-    
-    //Purity studies (only in MC reco mode)
-    
-    if(!fmontecarlo || !fReco ) return;
-    
-    TString namebinD[4] = {"3to5","5to8","8to16","16to24"};
-    TString namebinAss[6] = {"03to99","03to1","1to99","1to2","2to3","3to99"};
-    
-    AliAODMCParticle* trkKine = (AliAODMCParticle*)mcArray->At(track->GetLabel());
-    if (!trkKine) return;
-    Double_t origTr = CheckTrackOrigin(mcArray,trkKine);
-    Bool_t primTrack = trkKine->IsPhysicalPrimary();
-    Double_t pTtr = track->Pt();
-    
-    Bool_t fillAssocRange[6] = {kFALSE,kFALSE,kFALSE,kFALSE,kFALSE,kFALSE};
-    TString stringpTD = "";
-    Bool_t okpTD = kFALSE;
-    /*
-     if(ptbinlims[ptbin] >= 3 && ptbinlims[ptbin] < 5)   {stringpTD = namebinD[0]; okpTD = kTRUE;}
-     if(ptbinlims[ptbin] >= 5 && ptbinlims[ptbin] < 8)   {stringpTD = namebinD[1]; okpTD = kTRUE;}
-     if(ptbinlims[ptbin] >= 8 && ptbinlims[ptbin] < 16)  {stringpTD = namebinD[2]; okpTD = kTRUE;}
-     if(ptbinlims[ptbin] >= 16 && ptbinlims[ptbin] < 24) {stringpTD = namebinD[3]; okpTD = kTRUE;}
-     */
-    
-    if(fBinLimsCorr.at(ptbin) >= 3 && fBinLimsCorr.at(ptbin) < 5)   {stringpTD = namebinD[0]; okpTD = kTRUE;}
-    if(fBinLimsCorr.at(ptbin) >= 5 && fBinLimsCorr.at(ptbin) < 8)   {stringpTD = namebinD[1]; okpTD = kTRUE;}
-    if(fBinLimsCorr.at(ptbin) >= 8 && fBinLimsCorr.at(ptbin) < 16)  {stringpTD = namebinD[2]; okpTD = kTRUE;}
-    if(fBinLimsCorr.at(ptbin) >= 16 && fBinLimsCorr.at(ptbin) < 24) {stringpTD = namebinD[3]; okpTD = kTRUE;}
-    
-    
-    if(pTtr >= 0.3) fillAssocRange[0] = kTRUE;
-    if(pTtr >= 0.3 && pTtr < 1) fillAssocRange[1] = kTRUE;
-    if(pTtr >= 1) fillAssocRange[2] = kTRUE;
-    if(pTtr >= 1 && pTtr < 2) fillAssocRange[3] = kTRUE;
-    if(pTtr >= 2 && pTtr < 3) fillAssocRange[4] = kTRUE;
-    if(pTtr >= 3) fillAssocRange[5] = kTRUE;
-    
-    if(!okpTD) return;
-    for(int j=0; j<6; j++) {
-        if(fillAssocRange[j]==kTRUE) {
-            if(primTrack) {
-                ((TH1F*)fOutputMC->FindObject(Form("hPurityCount_PrimAccepted_pTD%s_pTass%s",stringpTD.Data(),namebinAss[j].Data())))->Fill(0.);
-                ((TH1F*)fOutputMC->FindObject(Form("hPuritydPhi_PrimAccepted_pTD%s_pTass%s",stringpTD.Data(),namebinAss[j].Data())))->Fill(deltaphi);
-            }
-            if(!primTrack) {
-                ((TH1F*)fOutputMC->FindObject(Form("hPurityCount_SecAccepted_pTD%s_pTass%s",stringpTD.Data(),namebinAss[j].Data())))->Fill(0.);
-                ((TH1F*)fOutputMC->FindObject(Form("hPuritydPhi_SecAccepted_pTD%s_pTass%s",stringpTD.Data(),namebinAss[j].Data())))->Fill(deltaphi);
-            }
-            if(origTr>=1&&origTr<=3) {
-                ((TH1F*)fOutputMC->FindObject(Form("hPurityCount_CharmAccepted_pTD%s_pTass%s",stringpTD.Data(),namebinAss[j].Data())))->Fill(0.);
-                ((TH1F*)fOutputMC->FindObject(Form("hPuritydPhi_CharmAccepted_pTD%s_pTass%s",stringpTD.Data(),namebinAss[j].Data())))->Fill(deltaphi);
-            }
-            if(origTr>=4&&origTr<=8) {
-                ((TH1F*)fOutputMC->FindObject(Form("hPurityCount_BeautyAccepted_pTD%s_pTass%s",stringpTD.Data(),namebinAss[j].Data())))->Fill(0.);
-                ((TH1F*)fOutputMC->FindObject(Form("hPuritydPhi_BeautyAccepted_pTD%s_pTass%s",stringpTD.Data(),namebinAss[j].Data())))->Fill(deltaphi);
-            }
-        }
-    }
-    
-    
-    return;
-}
-//___________________________________________________________________________________________________________________________
-Int_t AliAnalysisTaskDStarCorrelations::CheckTrackOrigin(TClonesArray* arrayMC, AliAODMCParticle *mcPartCandidate) const {
-    //
-    // checks on particle (#) origin:
-    // 0) Not HF
-    // 1) D->#
-    // 2) D->X->#
-    // 3) c hadronization
-    // 4) B->#
-    // 5) B->X-># (X!=D)
-    // 6) B->D->#
-    // 7) B->D->X->#
-    // 8) b hadronization
-    //
-    if(fDebug>2) printf("AliAnalysisTaskDStarCorrelations::CheckTrkOrigin() \n");
-    
-    Int_t pdgGranma = 0;
-    Int_t mother = 0;
-    mother = mcPartCandidate->GetMother();
-    Int_t istep = 0;
-    Int_t abspdgGranma =0;
-    Bool_t isFromB=kFALSE;
-    Bool_t isDdaugh=kFALSE;
-    Bool_t isDchaindaugh=kFALSE;
-    Bool_t isBdaugh=kFALSE;
-    Bool_t isBchaindaugh=kFALSE;
-    Bool_t isQuarkFound=kFALSE;
-    
-    if (mother<0) return -1;
-    while (mother >= 0){
-        istep++;
-        AliAODMCParticle* mcMoth = dynamic_cast<AliAODMCParticle*>(arrayMC->At(mother));
-        if (mcMoth){
-            pdgGranma = mcMoth->GetPdgCode();
-            abspdgGranma = TMath::Abs(pdgGranma);
-            if ((abspdgGranma > 500 && abspdgGranma < 600) || (abspdgGranma > 5000 && abspdgGranma < 6000)){
-                isBchaindaugh=kTRUE;
-                if(istep==1) isBdaugh=kTRUE;
-            }
-            if ((abspdgGranma > 400 && abspdgGranma < 500) || (abspdgGranma > 4000 && abspdgGranma < 5000)){
-                isDchaindaugh=kTRUE;
-                if(istep==1) isDdaugh=kTRUE;
-            }
-            if(abspdgGranma==4 || abspdgGranma==5) {isQuarkFound=kTRUE; if(abspdgGranma==5) isFromB = kTRUE;}
-            mother = mcMoth->GetMother();
-        }else{
-            AliError("Failed casting the mother particle!");
-            return -1;
-        }
-    }
-    
-    //decides what to return based on the flag status
-    if(isQuarkFound) {
-        if(!isFromB) {  //charm
-            if(isDdaugh) return 1; //charm immediate
-            else if(isDchaindaugh) return 2; //charm chain
-            else return 3; //charm hadronization
-        }
-        else { //beauty
-            if(isBdaugh) return 4; //b immediate
-            else if(isBchaindaugh) { //b chain
-                if(isDchaindaugh) {
-                    if(isDdaugh) return 6; //d immediate
-                    return 7; //d chain
-                }
-                else return 5; //b, not d
-            }
-            else return 8; //b hadronization
-        }
-    }
-    else if(!isDdaugh && !isDchaindaugh && !isBdaugh && !isBchaindaugh) return 0; //no HF decay
-    //in this case, it's !isQuarkFound, but not in 100% cases it's a non HF particle!
-    //rarely you can find a D/B meson which comes from a -1! It isn't a Non-HF, in that case! And I'll return -1...
-    
-    return -1; //some problem spotted
-}
-//___________________________________________________________________________________________________________________________
-
-
 
 

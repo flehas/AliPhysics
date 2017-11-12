@@ -32,6 +32,7 @@
 #include <TH2F.h>
 #include <TH1D.h>
 #include <TH3D.h>
+#include <TTree.h>
 #include <TProfile.h>
 #include <TArrayD.h>
 #include <TRandom.h>
@@ -46,6 +47,8 @@
 #include "AliHFCorrelator.h"
 #include "AliAnalysisUtils.h"
 #include "AliVertexingHFUtils.h"
+#include "AliDstarhCutOptim.h"
+#include "AliHFOfflineCorrelator.h"
 
 class TParticle ;
 class TClonesArray ;
@@ -66,6 +69,7 @@ class AliAnalysisTaskDStarCorrelations : public AliAnalysisTaskSE
   enum CollSyst {pp,pA,AA};
   enum DEffVariable{kNone,kMult,kCentr,kRapidity,kEta};
   enum BkgMethod{kDZeroSB, kDStarSB};
+  enum TreeFill {kNoTrees, kFillCutOptTree};
   
   AliAnalysisTaskDStarCorrelations();
   AliAnalysisTaskDStarCorrelations(const Char_t* name,AliRDHFCutsDStartoKpipi* cuts, AliHFAssociatedTrackCuts *AsscCuts, AliAnalysisTaskDStarCorrelations::CollSyst syst,Bool_t mode);
@@ -84,13 +88,14 @@ class AliAnalysisTaskDStarCorrelations : public AliAnalysisTaskSE
   void DefineHistoForAnalysis();
   void EnlargeDZeroMassWindow();
     Bool_t IsDDaughter(AliAODMCParticle* d, AliAODMCParticle* track) const ;
+    Bool_t GetFillTrees() const {return fFillTrees;}
   
   // checker for event mixing
   void EventMixingChecks(AliAODEvent * AOD); 
  
     // setters
     void SetCorrelator(Int_t l) {fselect = l;} // select 1 for hadrons, 2 for Kaons, 3 for Kzeros
-    void SetMonteCarlo(Bool_t k) {fmontecarlo = k;}
+    void SetMonteCarlo(Bool_t k) {fmontecarlo = k; printf("Siamo qui    \n");}
     void SetUseMixing (Bool_t j) {fmixing = j;}
     void SetUseMult (Bool_t j) {fmult = j;}
     void SetUseFullMode (Bool_t j) {fFullmode = j;}
@@ -110,7 +115,9 @@ class AliAnalysisTaskDStarCorrelations : public AliAnalysisTaskSE
     void SetNofPhiBins(Int_t nbins){fPhiBins = nbins;} // number of delta phi bins
     void SetLevelOfDebug(Int_t debug){fDebugLevel=debug;} // set debug level
     void SetUseDisplacement(Int_t m) {fDisplacement=m;} // select 0 for no displ, 1 for abs displ, 2 for d0/sigma_d0
-    void SetPurityStudies(Bool_t puritystudies=kFALSE) {fPurityStudies=puritystudies;}
+    void SetFillTrees(TreeFill fillTrees) {fFillTrees=fillTrees;}
+    void FillTreeDStarForCutOptim(AliAODRecoCascadeHF* d, AliAODEvent* aod);
+    void ResetBranchDForCutOptim();
 
     
     void SetDim(){fDim = 4;
@@ -173,15 +180,12 @@ private:
   
   AliAnalysisTaskDStarCorrelations(const AliAnalysisTaskDStarCorrelations &source);
   AliAnalysisTaskDStarCorrelations& operator=(const AliAnalysisTaskDStarCorrelations& source);
-  Int_t CheckTrackOrigin(TClonesArray* arrayMC, AliAODMCParticle *mcPartCandidate) const;
-
   
   TObject* fhandler; //! Analysis Handler
   TClonesArray* fmcArray; //mcarray
   AliNormalizationCounter *fCounter; // counter
   AliHFCorrelator * fCorrelator; // object for correlations
-  void FillPurityPlots(TClonesArray* mcArray, AliReducedParticle* track, Int_t ptbin, Double_t deltaphi);
-
+  
   
   
   Int_t fselect; // select what to correlate with a D* 1-chargedtracks,2-chargedkaons,3-k0s
@@ -218,12 +222,14 @@ private:
   Float_t *fDMesonSigmas;//[fDim]
   Float_t * fD0Window;  //[fNofPtBins]
    
-  Bool_t fMCEventType; // Use MC event type 
+  Bool_t fMCEventType; // Use MC event type
+ 
   
-  Double_t fRefMult;   // refrence multiplcity (period b)
-  Int_t fAODProtection;            // flag to activate protection against AOD-dAOD mismatch.
-  Bool_t fPurityStudies;        // flag to activate purity studies (primaries, secondaries, charm and beauth tracks rejected by DCA cut, vs pT and deltaPhi)
+  Double_t fRefMult;   // reference multiplcity (period b)
     
+    
+  Int_t fAODProtection;            // flag to activate protection against AOD-dAOD mismatch.
+  
   TList *fOutput;                  //! user output data
   TList *fDmesonOutput; //!output related to d meson
   TList *fTracksOutput; //!output related to tracks
@@ -238,7 +244,13 @@ private:
   TH1D * fDeffMapvsPt; // histo for Deff mappin
   TH2D * fDeffMapvsPtvsMult; // histo for Deff mappin
   TH2D * fDeffMapvsPtvsEta; // histo for Deff mappin
-  TProfile* fMultEstimatorAvg[4]; 
+    
+     AliDstarhCutOptim *fBranchDCutVars;
+    
+    TreeFill fFillTrees;
+    TTree *fTreeD;
+   
+  TProfile* fMultEstimatorAvg[4];
   ClassDef(AliAnalysisTaskDStarCorrelations,11); // class for D meson correlations
   
 };
